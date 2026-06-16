@@ -1,10 +1,9 @@
 // api/overpass.js
-// Proxy do Overpass uruchamiany po stronie serwera na Vercelu.
-// Przegladarka pyta /api/overpass (same-origin -> zero CORS), a serwer odpytuje
-// Overpass z poprawnymi naglowkami (User-Agent + Referer), wiec nie ma 406.
+// Proxy do Overpass + wbudowana DIAGNOSTYKA.
+// Wejscie GET (zwykle otwarcie adresu w przegladarce) -> testuje wszystkie
+// serwery malym zapytaniem i pokazuje ktory dziala. POST { query } -> normalne odpytanie.
 
-// WAZNE: darmowy plan Vercela ubija funkcje po ~10s, chyba ze ustawimy maxDuration.
-export const maxDuration = 60;
+export const maxDuration = 60;  // darmowy Vercel ubija funkcje po ~10s bez tego
 
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -12,40 +11,62 @@ const ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter'
 ];
 
+async function callOverpass(ep, query, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try {
+    const r = await fetch(ep, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'User-Agent': 'HUMBAK-Leads/1.0 (https://humbakleads.vercel.app)',
+        'Referer': 'https://humbakleads.vercel.app/'
+      },
+      body: 'data=' + encodeURIComponent(query),
+      signal: c.signal
+    });
+    return r;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export default async function handler(req, res) {
-  // wyciagnij zapytanie
   let query = '';
   if (req.method === 'POST') {
     let b = req.body;
     if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
     query = (b && (b.query || b.data)) || '';
-  } else {
-    query = (req.query && req.query.data) || '';
   }
 
-  // GET bez danych = test "czy proxy zyje" (mozna otworzyc w przegladarce)
+  // --- TRYB DIAGNOSTYKI (GET / brak zapytania): testuje kazdy serwer ---
   if (!query) {
-    res.status(200).json({ ok: true, message: 'Proxy dziala. Wyslij POST { query }.' });
+    const testQ = '[out:json][timeout:10];node["amenity"="cafe"](54.515,18.52,54.525,18.54);out 1;';
+    const serwery = [];
+    for (const ep of ENDPOINTS) {
+      const nazwa = ep.replace('https://', '').replace('/api/interpreter', '');
+      try {
+        const r = await callOverpass(ep, testQ, 12000);
+        if (r.ok) {
+          const d = await r.json();
+          serwery.push({ serwer: nazwa, dziala: true, znaleziono: (d.elements || []).length });
+        } else {
+          serwery.push({ serwer: nazwa, dziala: false, status: r.status });
+        }
+      } catch (e) {
+        serwery.push({ serwer: nazwa, dziala: false, blad: e.name === 'AbortError' ? 'timeout 12s' : e.message });
+      }
+    }
+    res.status(200).json({ diagnostyka: true, serwery });
     return;
   }
 
+  // --- TRYB NORMALNY (POST z mapy) ---
   let lastInfo = '';
   for (const ep of ENDPOINTS) {
     try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 12000); // 12s na serwer
-      const r = await fetch(ep, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-          'User-Agent': 'HUMBAK-Leads/1.0 (https://humbakleads.vercel.app)',
-          'Referer': 'https://humbakleads.vercel.app/'
-        },
-        body: 'data=' + encodeURIComponent(query),
-        signal: controller.signal
-      });
-      clearTimeout(t);
+      const r = await callOverpass(ep, query, 12000);
       if (!r.ok) { lastInfo = ep.replace('https://', '') + ' -> ' + r.status; continue; }
       const data = await r.json();
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
