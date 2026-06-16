@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="referrer" content="origin-when-cross-origin" />
+<title>HUMBAK LEADS · firmy bez strony</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --orange:#C87D52;
+    --orange-deep:#B86A3F;
+    --clay:#C87D52;
+    --blue:#A8C5DA;
+    --blue-deep:#94B5CC;
+    --ink:#0D0D0D;
+    --paper:#F5F0EB;
+    --paper-2:#EAE3D6;
+    --line:rgba(13,13,13,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"DM Sans",system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    display:flex;flex-direction:column;height:100vh;overflow:hidden;
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---- top bar: baby blue grain gradient (jak hero landingu) ---- */
+  .topbar{
+    position:absolute;top:0;left:0;right:0;z-index:600;
+    overflow:hidden;
+  }
+  .grad-bg{
+    position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:var(--blue);
+    /* fade w dół: pełny kolor pod przyciskami, potem rozpływa się w mapę */
+    -webkit-mask-image:linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+            mask-image:linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+  }
+  .grad-blobs{position:absolute;inset:-20%}
+  .grad-blobs .blob{position:absolute;border-radius:50%;filter:blur(56px);will-change:transform}
+  .grad-blobs .b1{width:60%;height:74%;left:-8%;top:-14%;background:radial-gradient(circle,#A8C5DA 0%,rgba(168,197,218,0) 70%);animation:bdrift1 22s ease-in-out infinite}
+  .grad-blobs .b2{width:54%;height:60%;right:-8%;top:0;background:radial-gradient(circle,#B9D0E0 0%,rgba(185,208,224,0) 72%);animation:bdrift2 26s ease-in-out infinite}
+  .grad-blobs .b3{width:64%;height:74%;left:4%;bottom:-22%;background:radial-gradient(circle,#A8C5DA 0%,rgba(168,197,218,0) 70%);animation:bdrift3 20s ease-in-out infinite}
+  .grad-blobs .b4{width:50%;height:56%;right:6%;bottom:-6%;background:radial-gradient(circle,#F2EADF 0%,rgba(242,234,223,0) 72%);animation:bdrift4 24s ease-in-out infinite}
+  .grad-blobs .b5{width:46%;height:50%;left:30%;top:22%;background:radial-gradient(circle,#BCD4E3 0%,rgba(188,212,227,0) 74%);animation:bdrift5 28s ease-in-out infinite}
+  @keyframes bdrift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(13%,10%) scale(1.1)}66%{transform:translate(-9%,15%) scale(.95)}}
+  @keyframes bdrift2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-12%,12%) scale(1.08)}66%{transform:translate(8%,-10%) scale(.94)}}
+  @keyframes bdrift3{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(11%,-12%) scale(.95)}66%{transform:translate(-13%,-6%) scale(1.1)}}
+  @keyframes bdrift4{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-10%,-11%) scale(1.1)}66%{transform:translate(13%,9%) scale(.95)}}
+  @keyframes bdrift5{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(10%,-13%) scale(1.14)}}
+  .grad-grain{
+    position:absolute;inset:0;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size:160px 160px;opacity:.68;mix-blend-mode:soft-light;
+    animation:grainShift 6s steps(8) infinite;
+  }
+  @keyframes grainShift{0%{background-position:0 0}12%{background-position:-8% -6%}25%{background-position:6% -10%}37%{background-position:-10% 8%}50%{background-position:10% 6%}62%{background-position:-6% -8%}75%{background-position:8% 10%}87%{background-position:-10% -4%}100%{background-position:0 0}}
+  @media (prefers-reduced-motion: reduce){.grad-grain{animation:none}}
+
+  header{
+    position:relative;z-index:1;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:14px 20px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+  .brand .nav-mark{position:relative;width:38px;height:38px;flex-shrink:0;display:inline-flex;transform:translateY(-2px)}
+  .brand .nav-mark img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none;pointer-events:none}
+  .brand .nav-mark .nav-mark-spec{
+    position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
+    -webkit-mask-image:url("https://i.postimg.cc/Xqxnvb8q/b5ff3731-1251-4772-93ed-75ffdd59e9e9.png");
+    mask-image:url("https://i.postimg.cc/Xqxnvb8q/b5ff3731-1251-4772-93ed-75ffdd59e9e9.png");
+    -webkit-mask-size:contain;mask-size:contain;-webkit-mask-position:center;mask-position:center;
+    -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;transform-origin:center center;will-change:transform,opacity,background;
+  }
+  .brand .mark{
+    font-family:"Archivo Black",sans-serif;font-size:21px;letter-spacing:-.01em;color:var(--black,#0D0D0D);line-height:1;
+  }
+  .brand .mark b{color:var(--orange);font-weight:400}
+  .brand .sub{font-size:12px;color:rgba(13,13,13,.6);letter-spacing:.02em}
+
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  label.field{display:flex;flex-direction:column;gap:3px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:rgba(13,13,13,.6)}
+  select{
+    font-family:inherit;font-size:14px;color:var(--ink);
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:9px 12px;min-width:170px;cursor:pointer;
+  }
+  button.go{
+    font-family:inherit;font-size:14px;font-weight:700;color:#fff;
+    background:var(--orange);border:none;border-radius:10px;
+    padding:11px 18px;cursor:pointer;align-self:flex-end;
+    transition:transform .08s ease, filter .15s ease;
+  }
+  button.go:hover{filter:brightness(1.05)}
+  button.go:active{transform:translateY(1px)}
+  button.go:disabled{opacity:.5;cursor:wait}
+
+  .cityrow{display:flex;gap:6px}
+  .cityrow input{
+    font-family:inherit;font-size:14px;color:var(--ink);
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:9px 12px;width:200px;
+  }
+  .cityrow input:focus{outline:2px solid var(--blue-deep);outline-offset:0}
+  button.ghost{
+    font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);
+    background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:10px;
+    padding:9px 14px;cursor:pointer;white-space:nowrap;
+  }
+  button.ghost:hover{border-color:var(--orange);color:var(--orange)}
+  button.ghost:disabled{opacity:.5;cursor:wait}
+
+  /* ---- counter strip ---- */
+  .strip{
+    position:relative;z-index:1;
+    display:flex;align-items:center;gap:14px;
+    padding:8px 20px 14px;font-size:13px;
+  }
+  .count{font-family:"Archivo Black",sans-serif;font-weight:400;font-size:15px}
+  .count b{color:var(--orange-deep)}
+  .hint{color:rgba(13,13,13,.6);margin-left:auto;font-size:12px}
+
+  /* ---- map ---- */
+  #map{flex:1 1 auto;background:var(--paper-2)}
+  footer{flex:0 0 auto;padding:8px 20px;font-size:11px;line-height:1.4;color:rgba(22,19,15,.45);background:var(--paper);border-top:1px solid var(--line);text-align:center}
+  footer a{color:inherit}
+  .leaflet-container{font-family:inherit}
+
+  /* custom pin */
+  .pin{
+    width:22px;height:22px;border-radius:50% 50% 50% 0;
+    background:var(--orange);transform:rotate(-45deg);
+    border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);
+  }
+  .pin::after{content:"";position:absolute;top:6px;left:6px;width:6px;height:6px;border-radius:50%;background:#fff}
+
+  /* popup */
+  .leaflet-popup-content-wrapper{border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+  .leaflet-popup-content{margin:14px 16px;font-size:14px;line-height:1.45}
+  .pop-name{font-family:"DM Sans",sans-serif;font-weight:700;font-size:17px;margin:0 0 3px;line-height:1.2}
+  .pop-cat{font-size:11px;color:var(--orange-deep);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:700}
+  .pop-addr{color:rgba(22,19,15,.65);margin-bottom:12px}
+  .leaflet-popup-content a.pop-btn{
+    display:inline-block;text-decoration:none;font-weight:700;font-size:13px;
+    color:#fff;background:var(--orange);border-radius:9px;padding:9px 14px;
+  }
+  .leaflet-popup-content a.pop-btn:hover{filter:brightness(1.06);color:#fff}
+  .pop-note{margin-top:8px;font-size:11px;color:rgba(13,13,13,.45)}
+
+  /* toast / error */
+  .toast{
+    position:absolute;left:50%;bottom:24px;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:12px;
+    font-size:13px;max-width:80%;text-align:center;z-index:1200;
+    box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;
+  }
+  @media (max-width:640px){
+    header{padding:9px 13px 4px;gap:8px}
+    .brand{gap:9px;width:100%}
+    .brand .nav-mark{width:30px;height:30px}
+    .brand .mark{font-size:18px}
+    .brand .sub{display:none}
+    .controls{width:100%;gap:8px;align-items:stretch}
+    .flabel{display:none}
+    label.field{gap:0}
+    .controls label.field:first-of-type{flex:1 1 100%}
+    .controls label.field:nth-of-type(2){flex:1 1 0;min-width:0}
+    .cityrow{width:100%}
+    .cityrow input{flex:1 1 auto;width:auto;min-width:0}
+    select{width:100%;min-width:0}
+    button.go{flex:0 0 auto;align-self:auto;white-space:nowrap;padding:11px 14px}
+    .strip{padding:5px 13px 12px}
+    .hint{display:none}
+    .count{font-size:14px}
+    /* mocniejszy fade, bo pasek niższy proporcjonalnie */
+    .grad-bg{
+      -webkit-mask-image:linear-gradient(to bottom, #000 0%, #000 70%, transparent 100%);
+              mask-image:linear-gradient(to bottom, #000 0%, #000 70%, transparent 100%);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="grad-bg" aria-hidden="true">
+    <div class="grad-blobs">
+      <span class="blob b1"></span>
+      <span class="blob b2"></span>
+      <span class="blob b3"></span>
+      <span class="blob b4"></span>
+      <span class="blob b5"></span>
+    </div>
+    <div class="grad-grain"></div>
+  </div>
+<header>
+  <div class="brand">
+    <span class="nav-mark">
+      <img id="navMarkImg" src="https://i.postimg.cc/Xqxnvb8q/b5ff3731-1251-4772-93ed-75ffdd59e9e9.png" alt="HUMBAK">
+      <span class="nav-mark-spec" id="navMarkSpec"></span>
+    </span>
+    <span class="mark">HUMBAK <b>LEADS</b></span>
+    <span class="sub">firmy bez własnej strony · dane: OpenStreetMap</span>
+  </div>
+  <div class="controls">
+    <label class="field"><span class="flabel">Miasto / okolica</span>
+      <div class="cityrow">
+        <input id="city" type="text" placeholder="np. Gdynia, Sopot, Mokotów" autocomplete="off" />
+        <button class="ghost" id="cityGo">Pokaż</button>
+      </div>
+    </label>
+    <label class="field"><span class="flabel">Branża</span>
+      <select id="category">
+        <option value="all">Wszystkie firmy</option>
+        <option value="gastro">Gastronomia</option>
+        <option value="beauty">Uroda / fryzjer</option>
+        <option value="health">Zdrowie / gabinety</option>
+        <option value="tourism">Noclegi / turystyka</option>
+        <option value="shop">Sklepy</option>
+        <option value="services">Usługi / rzemiosło</option>
+      </select>
+    </label>
+    <button class="go" id="search">Przeszukaj ten obszar</button>
+  </div>
+</header>
+
+<div class="strip">
+  <span class="count" id="count">Gotowe do startu</span>
+  <span class="hint">Wpisz miasto i „Pokaż", albo przesuń mapę → „Przeszukaj ten obszar"</span>
+</div>
+</div>
+
+<div id="map"></div>
+<footer>
+  Dane firm: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (licencja ODbL). Narzędzie służy do wyszukiwania firm.
+</footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ---- map ----
+const map = L.map('map', {zoomControl:false}).setView([54.5189, 18.5305], 15); // Gdynia Śródmieście
+L.control.zoom({position:'bottomleft'}).addTo(map);   // bottomleft, żeby nie chował się pod paskiem
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap, &copy; CARTO · leady: OSM (ODbL)',
+  maxZoom:19
+}).addTo(map);
+
+const pinIcon = L.divIcon({className:'', html:'<div class="pin"></div>', iconSize:[22,22], iconAnchor:[11,22], popupAnchor:[0,-22]});
+let layer = L.layerGroup().addTo(map);
+
+// ---- which OSM tags to fetch per category ----
+// nwr = node + way + relation, czyli lapiemy tez firmy narysowane jako budynek, nie tylko punkt
+const FILTERS = {
+  all: [
+    'nwr["shop"]',
+    'nwr["craft"]',
+    'nwr["office"]',
+    'nwr["tourism"~"hotel|guest_house|hostel|apartment|motel"]',
+    'nwr["healthcare"]',
+    'nwr["leisure"~"fitness_centre|sports_centre|spa|dance"]',
+    'nwr["amenity"~"cafe|restaurant|bar|pub|fast_food|ice_cream|fuel|pharmacy|clinic|dentist|doctors|veterinary|car_repair|car_rental|car_wash|driving_school|cinema|nightclub"]'
+  ],
+  gastro:     ['nwr["amenity"~"cafe|restaurant|bar|pub|fast_food|ice_cream"]'],
+  beauty:     ['nwr["shop"~"hairdresser|beauty"]','nwr["leisure"="spa"]'],
+  health:     ['nwr["healthcare"]','nwr["amenity"~"clinic|dentist|doctors|pharmacy|veterinary"]'],
+  tourism:    ['nwr["tourism"~"hotel|guest_house|hostel|apartment|motel"]'],
+  shop:       ['nwr["shop"]'],
+  services:   ['nwr["craft"]','nwr["office"]','nwr["amenity"~"car_repair|car_wash|driving_school"]'],
+};
+
+// ---- ludzkie, polskie nazwy kategorii (z surowych tagow OSM) ----
+const PL = {
+  cafe:'Kawiarnia', restaurant:'Restauracja', bar:'Bar', pub:'Pub', fast_food:'Fast food',
+  ice_cream:'Lodziarnia', fuel:'Stacja paliw', pharmacy:'Apteka', clinic:'Przychodnia',
+  dentist:'Dentysta', doctors:'Lekarz', doctor:'Lekarz', veterinary:'Weterynarz',
+  car_repair:'Warsztat samochodowy', car_rental:'Wypożyczalnia aut', car_wash:'Myjnia',
+  driving_school:'Szkoła jazdy', cinema:'Kino', nightclub:'Klub nocny', bank:'Bank',
+  hairdresser:'Fryzjer', beauty:'Salon kosmetyczny', bakery:'Piekarnia', butcher:'Sklep mięsny',
+  supermarket:'Supermarket', convenience:'Sklep spożywczy', clothes:'Odzież', shoes:'Obuwie',
+  florist:'Kwiaciarnia', jewelry:'Jubiler', optician:'Optyk', car:'Salon samochodowy',
+  furniture:'Meble', hardware:'Sklep budowlany', doityourself:'Sklep budowlany',
+  electronics:'Elektronika', mobile_phone:'Salon telefoniczny', computer:'Komputery',
+  books:'Księgarnia', gift:'Upominki', pet:'Sklep zoologiczny', toys:'Zabawki',
+  sports:'Sklep sportowy', bicycle:'Sklep rowerowy', alcohol:'Sklep alkoholowy',
+  confectionery:'Cukiernia', greengrocer:'Warzywniak', car_parts:'Części samochodowe',
+  tobacco:'Sklep tytoniowy', cosmetics:'Kosmetyki', tailor:'Krawiec', laundry:'Pralnia',
+  dry_cleaning:'Pralnia chemiczna', travel_agency:'Biuro podróży', estate_agent:'Biuro nieruchomości',
+  variety_store:'Sklep wielobranżowy', kiosk:'Kiosk', chemist:'Drogeria', deli:'Delikatesy',
+  interior_decoration:'Dekoracje wnętrz', second_hand:'Second hand',
+  glaziery:'Szklarz', carpenter:'Stolarz', electrician:'Elektryk', plumber:'Hydraulik',
+  painter:'Malarz', shoemaker:'Szewc', photographer:'Fotograf', jeweller:'Jubiler',
+  locksmith:'Ślusarz', gardener:'Ogrodnik', roofer:'Dekarz', builder:'Firma budowlana',
+  hvac:'Instalacje', blacksmith:'Kowal', upholsterer:'Tapicer', stonemason:'Kamieniarz',
+  joiner:'Stolarz', caterer:'Catering', confectioner:'Cukiernik', key_cutter:'Dorabianie kluczy',
+  chimney_sweeper:'Kominiarz',
+  lawyer:'Kancelaria prawna', accountant:'Biuro rachunkowe', insurance:'Ubezpieczenia',
+  it:'Firma IT', company:'Firma', financial:'Doradztwo finansowe', architect:'Architekt',
+  advertising_agency:'Agencja reklamowa', employment_agency:'Agencja pracy',
+  tax_advisor:'Doradca podatkowy', notary:'Notariusz', coworking:'Coworking',
+  hotel:'Hotel', guest_house:'Pensjonat', hostel:'Hostel', apartment:'Apartamenty', motel:'Motel',
+  fitness_centre:'Siłownia', sports_centre:'Centrum sportowe', spa:'Spa', dance:'Szkoła tańca',
+  physiotherapist:'Fizjoterapeuta', psychotherapist:'Psychoterapeuta',
+};
+function plCat(t){
+  const v = t.shop || t.craft || t.office || t.tourism || t.healthcare || t.leisure || t.amenity;
+  return (v && PL[v]) ? PL[v] : 'Firma';
+}
+
+// a business counts as "no website" if none of these tags exist
+const SITE_TAGS = ['website','contact:website','url','website:menu'];
+
+// ---- serwery Overpass: probujemy po kolei, az ktorys odpowie ----
+// private.coffee jako glowny: darmowy, bez limitow, obsluguje CORS i dziala
+// tam gdzie overpass-api.de zwraca teraz 406 (nowe reguly banowania, IV.2026)
+const OVERPASS = [
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter'
+];
+
+function fetchWithTimeout(url, body, ms){
+  const req = fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json'
+    },
+    body: 'data=' + encodeURIComponent(body)
+  });
+  const timeout = new Promise((_, rej) =>
+    setTimeout(() => rej(new Error('timeout po ' + (ms/1000) + 's')), ms)
+  );
+  return Promise.race([req, timeout]);
+}
+
+async function overpassFetch(query){
+  let lastErr;
+  for(const ep of OVERPASS){
+    try{
+      const res = await fetchWithTimeout(ep, query, 35000);
+      if(res.ok) return await res.json();
+      lastErr = new Error('HTTP ' + res.status);
+    }catch(e){
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('brak odpowiedzi');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',6000);
+}
+
+function googleLink(name, lat, lon){
+  // Kotwica na DOKLADNYCH wspolrzednych firmy. Nawet gdy Google nie otworzy
+  // panelu, viewport laduje idealnie na miejscu — widac firme golym okiem.
+  return 'https://www.google.com/maps/search/' + encodeURIComponent(name) + '/@' + lat + ',' + lon + ',17z';
+}
+
+async function search(){
+  const z = map.getZoom();
+  if(z < 14){ toast('Przybliż trochę (min. zoom 14). Przy większym obszarze zapytanie jest wolne i część firm się nie mieści — mniejszy wycinek = szybko i komplet.'); return; }
+
+  const b = map.getBounds();
+  const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
+  const cat = document.getElementById('category').value;
+  const selectors = FILTERS[cat].map(s => `${s}(${bbox});`).join('');
+  const query = `[out:json][timeout:30];(${selectors});out center tags 4000;`;
+
+  const btn = document.getElementById('search');
+  const count = document.getElementById('count');
+  btn.disabled = true; count.innerHTML = 'Szukam…';
+  layer.clearLayers();
+
+  try{
+    const data = await overpassFetch(query);
+
+    let hits = 0;
+    for(const el of data.elements){
+      const t = el.tags || {};
+      if(!t.name) continue;                                   // bez nazwy nie ma czego pokazać
+      if(SITE_TAGS.some(k => t[k])) continue;                 // ma stronę → pomijamy
+      const phone = t.phone || t['contact:phone'] || t['contact:mobile'];
+      if(!phone) continue;                                    // FILTR JAKOSCI (niewidoczny): bez telefonu w OSM pomijamy — to glownie duchy. Numeru NIE wyswietlamy.
+      const lat = el.lat ?? el.center?.lat;
+      const lon = el.lon ?? el.center?.lon;
+      if(lat == null || lon == null) continue;
+
+      const cat = plCat(t);
+      const html = `
+        <p class="pop-name">${esc(t.name)}</p>
+        <div class="pop-cat">${esc(cat)}</div>
+        <a class="pop-btn" target="_blank" rel="noopener" href="${googleLink(t.name, lat, lon)}">Otwórz w Google Maps →</a>
+        <div class="pop-note">pinezka z OpenStreetMap — zweryfikuj w Google</div>`;
+      L.marker([lat,lon],{icon:pinIcon}).bindPopup(html).addTo(layer);
+      hits++;
+    }
+
+    count.innerHTML = hits
+      ? `<b>${hits}</b> firm bez strony w tym widoku`
+      : 'Zero trafień — to nie błąd. W tym wycinku nie ma firm pasujących do filtra. Przesuń mapę albo zmień branżę.';
+  }catch(err){
+    count.innerHTML = 'Nie udało się pobrać danych';
+    toast('Serwery OSM nie odpowiedziały (' + err.message + '). Odczekaj chwilę i spróbuj ponownie.');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+// ---- skok do miasta/okolicy (geokoder OSM = Nominatim) ----
+async function gotoCity(){
+  const q = document.getElementById('city').value.trim();
+  if(!q) return;
+  const cityBtn = document.getElementById('cityGo');
+  cityBtn.disabled = true;
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pl&accept-language=pl&q=' + encodeURIComponent(q);
+    const r = await fetch(url);
+    const arr = await r.json();
+    if(!arr.length){ toast('Nie znalazłem takiego miejsca. Spróbuj inaczej, np. „Gdynia Śródmieście".'); return; }
+    map.setView([+arr[0].lat, +arr[0].lon], 15);
+    toast('Jesteś na miejscu. Kliknij „Przeszukaj ten obszar", żeby pokazać firmy.');
+  }catch(e){
+    toast('Nie udało się wyszukać miejsca: ' + e.message);
+  }finally{
+    cityBtn.disabled = false;
+  }
+}
+
+document.getElementById('search').addEventListener('click', search);
+document.getElementById('cityGo').addEventListener('click', gotoCity);
+document.getElementById('city').addEventListener('keydown', e => { if(e.key === 'Enter') gotoCity(); });
+
+// celowo NIE szukamy automatycznie przy otwarciu — kursant najpierw wybiera teren,
+// potem klika „Przeszukaj" (albo wpisuje miasto). Mniej zaskoczenia, mniej zbednych zapytan.
+
+// ---- kręcące się logo (spin po osi Y, 5s pętla) — z landingu HUMBAK ----
+function spinMark(img, spec){
+  if(!img || !spec) return;
+  const PERIOD_MS = 5000, MIN_SCALE = 0.012;
+  let start = null;
+  function frame(now){
+    if(start === null) start = now;
+    const t = ((now - start) % PERIOD_MS) / PERIOD_MS;
+    const angle = t * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const scaleX = Math.max(Math.abs(cos), MIN_SCALE);
+    img.style.transform = `scaleX(${scaleX})`;
+    if(cos >= 0){
+      const sweep = Math.sin(angle) * 18;
+      spec.style.transform = `scaleX(${scaleX})`;
+      spec.style.opacity = String(0.4 + 0.5 * cos);
+      spec.style.background = `linear-gradient(${100 + sweep}deg, rgba(255,255,255,0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 65%)`;
+    } else {
+      spec.style.opacity = '0';
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+spinMark(document.getElementById('navMarkImg'), document.getElementById('navMarkSpec'));
+
+</script>
+</body>
+</html>
